@@ -50,7 +50,13 @@ jobs:
           }
           Write-Host "라이선스 파일($licenseFilePath)이 성공적으로 생성되었습니다."
           # 보안을 위해 라이선스 파일의 내용은 로그에 출력하지 않습니다.
-          # Get-Content $licenseFilePath | Write-Host # <-- 디버깅용: 라이선스 내용 확인 (실제 운영 시에는 주석 처리)
+
+          Write-Host "`n==== 생성된 라이선스 파일 확인 ===="
+          # 특정 파일만 확인 (권장)
+          Get-ChildItem -Path $licenseFilePath | Format-Table Name, Length, LastWriteTime -AutoSize
+          # 또는 현재 디렉토리 전체 파일 목록에서 찾기
+          # Get-ChildItem -Path "./" -File | Where-Object {$_.Name -eq $licenseFileName} | Format-Table Name, Length, LastWriteTime -AutoSize
+          Write-Host "==============================="
 
       - name: 디스크 공간 확인 (GB 단위)
         shell: pwsh
