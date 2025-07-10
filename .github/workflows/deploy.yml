@@ -55,8 +55,60 @@ jobs:
           # 특정 파일만 확인 (권장)
           Get-ChildItem -Path $licenseFilePath | Format-Table Name, Length, LastWriteTime -AutoSize
           # 또는 현재 디렉토리 전체 파일 목록에서 찾기
-          # Get-ChildItem -Path "./" -File | Where-Object {$_.Name -eq $licenseFileName} | Format-Table Name, Length, LastWriteTime -AutoSize
+          Get-ChildItem -Path "./" -File | Where-Object {$_.Name -eq $licenseFileName} | Format-Table Name, Length, LastWriteTime -AutoSize
           Write-Host "==============================="
+
+
+      - name: Coverity Installer Download from HTTP Server
+        shell: pwsh
+        env:
+          # 여기에 실제 서버 URL 및 파일명을 입력하세요.
+          INSTALLER_DOWNLOAD_URL: http://160.187.202.144/downloads/cov-analysis-win64-2024.12.1.exe 
+          # 다운로드될 파일의 로컬 경로 및 이름 (워크플로우 작업 디렉토리 기준)
+          LOCAL_INSTALLER_PATH: cov-analysis-win64-2024.12.1.exe 
+        run: |
+          # 🚨🚨 중요 경고 🚨🚨
+          # 이 URL은 반드시 GitHub Actions Runner에서 접근 가능한 공개적인 URL이어야 합니다.
+          # 사설 IP 주소나 내부망 도메인은 접근할 수 없어 다운로드에 실패합니다.
+
+          $downloadUrl = "${{ env.INSTALLER_DOWNLOAD_URL }}"
+          $outputPath = "${{ env.LOCAL_INSTALLER_PATH }}"
+          # 다운로드될 파일의 디렉토리가 현재 워크플로우의 작업 디렉토리(리포지토리 루트)이므로 별도 생성 필요 없음
+          # 만약 특정 서브폴더(예: `downloads/`)에 저장하려면:
+          # $downloadDir = "downloads"
+          # New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
+          # $outputPath = Join-Path $downloadDir "${{ env.LOCAL_INSTALLER_PATH }}"
+
+
+          Write-Host "Coverity 설치 파일 다운로드 시작..."
+          Write-Host "URL: $downloadUrl"
+          Write-Host "저장 위치: $outputPath"
+
+          try {
+              # Invoke-WebRequest를 사용하여 파일 다운로드
+              # -Uri: 다운로드할 URL
+              # -OutFile: 다운로드된 파일을 저장할 경로
+              # -TimeoutSec: 다운로드 타임아웃 (초). 대용량 파일에 충분히 큰 값 설정 (예: 10분 = 600초)
+              # -ErrorAction Stop: 오류 발생 시 스크립트 중단
+              Invoke-WebRequest -Uri $downloadUrl -OutFile $outputPath -TimeoutSec 600 -ErrorAction Stop
+
+              if (-not (Test-Path $outputPath)) {
+                  throw "파일 다운로드에 실패했습니다. 파일이 생성되지 않았습니다."
+              }
+              Write-Host "`n파일 다운로드 성공!"
+              Write-Host "다운로드된 파일 크기: $((Get-Item $outputPath).Length / 1MB) MB"
+          }
+          catch {
+              Write-Error "`n파일 다운로드 중 오류 발생: $($_.Exception.Message)"
+              Write-Error "URL ($downloadUrl)이 GitHub Runner에서 접근 가능한지, 또는 네트워크 문제가 없는지 확인하세요."
+              exit 1
+          }
+
+          # (선택 사항: 다운로드된 파일 목록 확인)
+          Write-Host "`n==== 다운로드 후 현재 디렉토리 파일 목록 ===="
+          Get-ChildItem -Path "./" -File | Format-Table Name, Length, LastWriteTime -AutoSize
+          Write-Host "============================"
+
 
       - name: 디스크 공간 확인 (GB 단위)
         shell: pwsh
