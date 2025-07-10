@@ -1,0 +1,11 @@
+﻿  floating_point_equality.cpp
+  null_deref.cpp
+  negative.cpp
+  test.cpp
+  use_after_free.cpp
+  코드를 생성하고 있습니다...
+test.obj : error LNK2019: "int __cdecl some_func(void)" (?some_func@@YAHXZ)"void __cdecl dead_code(void)" (?dead_code@@YAXXZ) 함수에서 참조되는 확인할 수 없는 외부 기호
+test.obj : error LNK2019: "bool __cdecl some_other_function(void)" (?some_other_function@@YA_NXZ)"int __cdecl paths(void)" (?paths@@YAHXZ) 함수에서 참조되는 확인할 수 없는 외부 기호
+test.obj : error LNK2019: "bool __cdecl yet_another_function(void)" (?yet_another_function@@YA_NXZ)"int __cdecl paths(void)" (?paths@@YAHXZ) 함수에서 참조되는 확인할 수 없는 외부 기호
+test.obj : error LNK2019: "void __cdecl do_some_things(char *)" (?do_some_things@@YAXPEAD@Z)"int __cdecl paths(void)" (?paths@@YAHXZ) 함수에서 참조되는 확인할 수 없는 외부 기호
+C:\Users\JihyeongKim\Desktop\250523\project_ctest\x64\Debug\Project.exe : fatal error LNK1120: 4개의 확인할 수 없는 외부 참조입니다.
