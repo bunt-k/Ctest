@@ -211,7 +211,7 @@ jobs:
           if (Test-Path $coverityBinPath) { # 찾은 경로가 실제로 존재하는지 다시 확인
               $env:PATH += ";$coverityBinPath"
               Write-Host "Coverity CLI 경로 '$coverityBinPath'가 PATH에 추가되었습니다."
-              cov-build --version # 설치 확인 명령어
+              cov-configure --msvc
           } else {
               Write-Warning "Coverity CLI 경로 '$coverityBinPath'를 찾을 수 없어 PATH에 추가하지 못했습니다. CLI 사용 불가."
           }
