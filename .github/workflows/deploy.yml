@@ -205,14 +205,47 @@ jobs:
           # }
           Write-Host "Coverity 설치 프로그램 실행 완료."
           
+
+
+
+
           # -----------------------------------------------------------------
-          # 5. 설치 후 Coverity CLI PATH 설정 및 확인
+          # 추가된 부분: Coverity 설치 경로 (C:\Coverity) 내용 확인
           # -----------------------------------------------------------------
-          $coverityBinPath = "C:\Coverity\bin" # 인자로 지정한 설치 경로 기준
-          if (Test-Path $coverityBinPath) {
+          $coverityInstallRoot = "C:\Coverity" # 설치 경로 변수
+
+          Write-Host "`n==== Coverity 설치 경로 '$coverityInstallRoot' 내용 ===="
+          if (Test-Path $coverityInstallRoot) {
+              # 설치 루트 폴더의 내용 확인
+              Get-ChildItem -Path $coverityInstallRoot -Force | Format-Table Name, LastWriteTime, Mode, Length -AutoSize
+              
+              Write-Host "`n==== '$coverityInstallRoot' 하위 폴더에서 'cov-build.exe' 찾기 ===="
+              # cov-build.exe 파일을 하위 폴더에서 재귀적으로 찾기
+              $covBuildExecutable = Get-ChildItem -Path $coverityInstallRoot -Recurse -Filter "cov-build.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+              
+              if ($covBuildExecutable) {
+                  Write-Host "cov-build.exe 발견: $($covBuildExecutable.FullName)"
+                  # PATH에 추가할 폴더 (cov-build.exe가 있는 디렉토리)
+                  $coverityBinPath = $covBuildExecutable.DirectoryName
+                  Write-Host "자동으로 찾은 Coverity CLI 경로: $coverityBinPath"
+              } else {
+                  Write-Warning "설치 경로 '$coverityInstallRoot' 내에서 'cov-build.exe'를 찾을 수 없습니다. 설치가 예상과 다르게 되었을 수 있습니다."
+                  # PATH에 추가할 경로를 기본값으로 설정 (혹시 모를 상황 대비)
+                  $coverityBinPath = Join-Path $coverityInstallRoot "bin"
+              }
+          } else {
+              Write-Error "ERROR: Coverity 설치 경로 '$coverityInstallRoot'를 찾을 수 없습니다. 설치가 실패했을 가능성이 높습니다."
+              $coverityBinPath = Join-Path $coverityInstallRoot "bin" # PATH 추가 시도용 기본값
+          }
+          Write-Host "============================================="
+
+          # -----------------------------------------------------------------
+          # Coverity CLI PATH 설정 및 확인 (위에서 찾은 경로를 사용)
+          # -----------------------------------------------------------------
+          if (Test-Path $coverityBinPath) { # 찾은 경로가 실제로 존재하는지 다시 확인
               $env:PATH += ";$coverityBinPath"
-              Write-Host "Coverity CLI 경로가 PATH에 추가되었습니다."
+              Write-Host "Coverity CLI 경로 '$coverityBinPath'가 PATH에 추가되었습니다."
               cov-build --version # 설치 확인 명령어
           } else {
-              Write-Warning "Coverity 설치 경로에 bin 폴더를 찾을 수 없어 PATH에 추가하지 못했습니다."
+              Write-Warning "Coverity CLI 경로 '$coverityBinPath'를 찾을 수 없어 PATH에 추가하지 못했습니다. CLI 사용 불가."
           }
