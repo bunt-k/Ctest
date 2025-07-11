@@ -178,7 +178,7 @@ jobs:
           # -----------------------------------------------------------------
           # Coverity 설치 경로 (C:\Coverity) 내용 확인
           # -----------------------------------------------------------------
-          $coverityInstallRoot = "C:\\Program Files" # 설치 경로 변수
+          $coverityInstallRoot = "C:\\Program Files\\Coverity" # 설치 경로 변수
 
           Write-Host "`n==== Coverity 설치 경로 '$coverityInstallRoot' 내용 ===="
           if (Test-Path $coverityInstallRoot) {
@@ -215,3 +215,4 @@ jobs:
           } else {
               Write-Warning "Coverity CLI 경로 '$coverityBinPath'를 찾을 수 없어 PATH에 추가하지 못했습니다. CLI 사용 불가."
           }
+
