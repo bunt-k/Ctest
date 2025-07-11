@@ -144,7 +144,7 @@ jobs:
           # -----------------------------------------------------------------
           # 1. 최종 설치 인자 문자열 구성
           # -----------------------------------------------------------------
-          $baseArguments = "-q -console --installation.dir="C:\Program Files" --license.region=5 --license.agreement=agree --license.type.choice=0"
+          $baseArguments = "-q -console --installation.dir=""C:\\Program Files"" --license.region=5 --license.agreement=agree --license.type.choice=0"
           $finalInstallerArguments = "$baseArguments $licensePathArgument"
           
           # -----------------------------------------------------------------
