@@ -168,7 +168,6 @@ jobs:
               Start-Process -FilePath "$installerPath" `
                             -ArgumentList "$finalInstallerArguments" `
                             -Wait ` # <--- 이 옵션이 설치가 완료될 때까지 기다립니다!
-                            -PassThru `
               
               $exitCode = $LASTEXITCODE # 프로세스가 종료된 후의 종료 코드를 가져옵니다.
           } catch {
