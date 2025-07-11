@@ -144,7 +144,7 @@ jobs:
           # -----------------------------------------------------------------
           # 1. 최종 설치 인자 문자열 구성
           # -----------------------------------------------------------------
-          $baseArguments = "-q -console --installation.dir=C:\Program Files --license.region=5 --license.agreement=agree --license.type.choice=0"
+          $baseArguments = "-q -console --installation.dir="C:\Program Files" --license.region=5 --license.agreement=agree --license.type.choice=0"
           $finalInstallerArguments = "$baseArguments $licensePathArgument"
           
           # -----------------------------------------------------------------
@@ -153,25 +153,19 @@ jobs:
           # -----------------------------------------------------------------
           $fullCommandToExecute = "`"$installerPath`" $finalInstallerArguments"
           Write-Host "DEBUG: 실행될 최종 설치 명령어: $fullCommandToExecute"
-          Write-Host "상세 설치 로그는 '$coverityInstallerLogLocation'에 기록될 예정입니다."
-          Write-Host "설치 프로그램 출력이 콘솔에 직접 표시될 수 있습니다 (프로그램 설정에 따라 다름)."
           
           # -----------------------------------------------------------------
           # 3. Coverity 설치 프로그램 실행 (PowerShell의 '&' 호출 연산자 사용)
           # -----------------------------------------------------------------
-          
+          Write-Host "Coverity 설치 시작."
           & "$installerPath" $finalInstallerArguments
           $exitCode = $LASTEXITCODE
           Write-Host "Coverity 설치 프로그램 실행 완료."
           
-
-
-
-
           # -----------------------------------------------------------------
-          # 추가된 부분: Coverity 설치 경로 (C:\Coverity) 내용 확인
+          # Coverity 설치 경로 (C:\Coverity) 내용 확인
           # -----------------------------------------------------------------
-          $coverityInstallRoot = "C:\Coverity" # 설치 경로 변수
+          $coverityInstallRoot = "C:\Program Files" # 설치 경로 변수
 
           Write-Host "`n==== Coverity 설치 경로 '$coverityInstallRoot' 내용 ===="
           if (Test-Path $coverityInstallRoot) {
