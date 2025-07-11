@@ -123,7 +123,7 @@ jobs:
         env:
           COVERITY_ORIGINAL_INSTALLER_NAME: cov-analysis-win64-2024.12.1.exe
         run: |
-          $installerPath = "./${{ env.COVERITY_ORIGINAL_INSTALLER_NAME }}" 
+          $installerPath = "${{ env.COVERITY_ORIGINAL_INSTALLER_NAME }}" 
           
           # -----------------------------------------------------------------
           # 1. license.dat 파일의 절대 경로 구성
@@ -151,7 +151,6 @@ jobs:
           Write-Host "DEBUG: 사용될 라이선스 파일 절대 경로: $licenseFullAbsolutePath"
           Write-Host "DEBUG: 사용될 설치 프로그램 상세 로그 경로: $coverityInstallerLogLocation"
           Write-Host "DEBUG: 사용될 최종 설치 인자: $installerArguments"
-          Write-Host "설치 프로그램 출력이 콘솔에 직접 표시됩니다. (주의: 설치 프로그램이 콘솔 출력을 제공하지 않을 수 있습니다.)"
           
           # -----------------------------------------------------------------
           # 4. Coverity 설치 프로그램 실행 (PowerShell의 '&' 호출 연산자 사용)
