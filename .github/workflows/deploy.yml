@@ -165,7 +165,7 @@ jobs:
           # -----------------------------------------------------------------
           # Coverity 설치 경로 (C:\Coverity) 내용 확인
           # -----------------------------------------------------------------
-          $coverityInstallRoot = "C:\Program Files" # 설치 경로 변수
+          $coverityInstallRoot = "C:\\Program Files" # 설치 경로 변수
 
           Write-Host "`n==== Coverity 설치 경로 '$coverityInstallRoot' 내용 ===="
           if (Test-Path $coverityInstallRoot) {
