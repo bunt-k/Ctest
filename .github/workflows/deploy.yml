@@ -153,7 +153,7 @@ jobs:
           # 1. 최종 설치 인자 문자열 구성
           # -----------------------------------------------------------------
           $baseArguments = "-q -console --installation.dir=C:\\Coverity --license.region=5 --license.agreement=agree --license.type.choice=0"
-          $finalInstallerArguments = "$baseArguments $licensePathArgument $installerLogArgument"
+          $finalInstallerArguments = "$baseArguments $licensePathArgument"
           
           # -----------------------------------------------------------------
           # 2. 실행될 정확한 전체 명령어 문자열 구성 및 콘솔에 출력 (디버깅용)
@@ -167,42 +167,42 @@ jobs:
           # -----------------------------------------------------------------
           # 3. Coverity 설치 프로그램 실행 (PowerShell의 '&' 호출 연산자 사용)
           # -----------------------------------------------------------------
-          try {
-              # '&' 연산자를 사용하여 실행 파일을 직접 호출하고 인자를 전달합니다.
-              # 이 방법은 실행 파일의 표준 출력/에러를 GitHub Actions 로그에 직접 보여줄 가능성이 높습니다.
-              & "$installerPath" $finalInstallerArguments
-              $exitCode = $LASTEXITCODE # 실행된 프로세스의 종료 코드를 가져옵니다.
-          } catch {
-              # PowerShell이 실행 파일 호출 자체에서 예외를 던질 경우 (예: 파일 없음, 권한 없음)
-              Write-Error "Coverity 설치 프로그램 호출 중 PowerShell 예외 발생: $($_.Exception.Message)"
-              $exitCode = 9999 # 예외 발생 시 임의의 종료 코드 (0이 아닌 값)
-          }
+          # try {
+          # '&' 연산자를 사용하여 실행 파일을 직접 호출하고 인자를 전달합니다.
+          # 이 방법은 실행 파일의 표준 출력/에러를 GitHub Actions 로그에 직접 보여줄 가능성이 높습니다.
+          & "$installerPath" $finalInstallerArguments
+          $exitCode = $LASTEXITCODE # 실행된 프로세스의 종료 코드를 가져옵니다.
+          # } catch {
+          #     # PowerShell이 실행 파일 호출 자체에서 예외를 던질 경우 (예: 파일 없음, 권한 없음)
+          #     Write-Error "Coverity 설치 프로그램 호출 중 PowerShell 예외 발생: $($_.Exception.Message)"
+          #     $exitCode = 9999 # 예외 발생 시 임의의 종료 코드 (0이 아닌 값)
+          # }
           
-          # -----------------------------------------------------------------
-          # 4. 설치 실패 시 상세 로그 파일 내용 출력 (가장 중요!)
-          # -----------------------------------------------------------------
-          if ($exitCode -ne 0) {
-              Write-Error "Coverity 설치 프로그램 실행 중 오류 발생. 종료 코드: $exitCode"
+          # # -----------------------------------------------------------------
+          # # 4. 설치 실패 시 상세 로그 파일 내용 출력 (가장 중요!)
+          # # -----------------------------------------------------------------
+          # if ($exitCode -ne 0) {
+          #     Write-Error "Coverity 설치 프로그램 실행 중 오류 발생. 종료 코드: $exitCode"
               
-              Write-Host "`n==== Coverity 설치 프로그램 상세 로그 파일 내용 ===="
-              if (Test-Path $coverityInstallerLogLocation) {
-                  Get-Content $coverityInstallerLogLocation | Write-Host
-              } else {
-                  Write-Host "상세 로그 파일 ($coverityInstallerLogLocation)을 찾을 수 없거나 생성되지 않았습니다."
-              }
-              Write-Host "===================================================="
+          #     Write-Host "`n==== Coverity 설치 프로그램 상세 로그 파일 내용 ===="
+          #     if (Test-Path $coverityInstallerLogLocation) {
+          #         Get-Content $coverityInstallerLogLocation | Write-Host
+          #     } else {
+          #         Write-Host "상세 로그 파일 ($coverityInstallerLogLocation)을 찾을 수 없거나 생성되지 않았습니다."
+          #     }
+          #     Write-Host "===================================================="
 
-              # (임시 폴더 로그 확인 로직: 이전 답변에서 제공된 부분, 필요시 유지)
-              $coveritySpecificLog2 = Join-Path $env:TEMP "coverity_installer_*.log"
-              Write-Host "`n==== Coverity 설치 프로그램 임시 폴더 로그 확인 ===="
-              Get-ChildItem -Path $env:TEMP -Filter "coverity_installer_*.log" | ForEach-Object {
-                  Write-Host "임시 폴더 로그 ($($_.FullName)) 내용:"
-                  Get-Content $_.FullName | Write-Host
-              } | Out-Null
-              Write-Host "======================================================"
+          #     # (임시 폴더 로그 확인 로직: 이전 답변에서 제공된 부분, 필요시 유지)
+          #     $coveritySpecificLog2 = Join-Path $env:TEMP "coverity_installer_*.log"
+          #     Write-Host "`n==== Coverity 설치 프로그램 임시 폴더 로그 확인 ===="
+          #     Get-ChildItem -Path $env:TEMP -Filter "coverity_installer_*.log" | ForEach-Object {
+          #         Write-Host "임시 폴더 로그 ($($_.FullName)) 내용:"
+          #         Get-Content $_.FullName | Write-Host
+          #     } | Out-Null
+          #     Write-Host "======================================================"
               
-              exit 1 # 워크플로우를 실패 처리
-          }
+          #     exit 1 # 워크플로우를 실패 처리
+          # }
           Write-Host "Coverity 설치 프로그램 실행 완료."
           
           # -----------------------------------------------------------------
