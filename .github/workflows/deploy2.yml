@@ -136,7 +136,7 @@ jobs:
           Write-Host "DEBUG: 실행될 최종 설치 명령어: $fullCommandToExecute"
           
           # -----------------------------------------------------------------
-          # 3. Coverity 설치 프로그램 실행 (PowerShell의 '&' 호출 연산자 사용)
+          # 3. Coverity 설치 프로그램 실행
           # -----------------------------------------------------------------
           
           # Write-Host "Coverity 설치 시작."
@@ -157,7 +157,7 @@ jobs:
           }
           
           # -----------------------------------------------------------------
-          # Coverity 설치 경로 (C:\Coverity) 내용 확인
+          # Coverity 설치 & 경로 내용 확인
           # -----------------------------------------------------------------
           $coverityInstallRoot = "C:\\Program Files\\Coverity" # 설치 경로 변수
 
@@ -200,7 +200,7 @@ jobs:
 
 
       # -----------------------------------------------------
-      # Step 4: Visual Studio 빌드 도구 설정 (기존 스텝 유지)
+      # Visual Studio 빌드 도구 설정
       # -----------------------------------------------------
       - name: Visual Studio 개발 환경 설정
         id: setup_msbuild
@@ -209,7 +209,7 @@ jobs:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
       # -----------------------------------------------------
-      # Step 5: MSBuild 경로 저장 (기존 스텝 유지)
+      # MSBuild 경로 저장
       # -----------------------------------------------------
       - name: MSBuild 경로 저장
         run: |
@@ -217,4 +217,49 @@ jobs:
           echo "MSBUILD_PATH=$msbuildPath" >> $env:GITHUB_ENV
           Write-Host "MSBuild 경로가 설정되었습니다: $msbuildPath"
         shell: pwsh
+
+
+      # Visual Studio 빌드 도구 설정
+      - name: Visual Studio 개발 환경 설정
+        id: setup_msbuild
+        uses: microsoft/setup-msbuild@v1.3.1
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+      # MSBuild 경로 저장
+      - name: MSBuild 경로 저장
+        run: |
+          $msbuildPath = vswhere.exe -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe
+          echo "MSBUILD_PATH=$msbuildPath" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      # Coverity Build Capture and Solution Build
+      - name: Coverity Build Capture and Solution Build
+        shell: pwsh
+        env:
+          COVERITY_INTERMEDIATE_DIR: idir # Coverity 중간 디렉토리
+        run: |
+          if (-not (Test-Path $env:MSBUILD_PATH)) {
+            Write-Error "ERROR: MSBuild 경로를 찾을 수 없습니다."; exit 1 }
+          New-Item -ItemType Directory -Path $env:COVERITY_INTERMEDIATE_DIR -Force | Out-Null
+          
+          $buildCommandString = "`"$env:MSBUILD_PATH`" Project.sln /p:Configuration=`"Release`""
+
+          try {
+              Start-Process -FilePath "C:\Program Files\Coverity\bin\cov-build.exe" `
+                            -ArgumentList @(
+                                "--dir",
+                                "${{ env.COVERITY_INTERMEDIATE_DIR }}",
+                                $buildCommandString
+                            ) `
+                            -Wait -NoNewWindow `
+              $exitCode = $LASTEXITCODE
+          } catch {
+              Write-Error "ERROR: cov-build 호출 중 예외 발생: $($_.Exception.Message)"; $exitCode = 9999 }
+          
+          if ($exitCode -ne 0) {
+              Write-Error "ERROR: Coverity 빌드 캡처 실패. 종료 코드: $exitCode"
+              if (Test-Path $covBuildLogOutput) { Get-Content $covBuildLogOutput | Write-Host }
+              if (Test-Path $covBuildLogError) { Get-Content $covBuildLogError | Write-Host }
+              exit 1 }
 
