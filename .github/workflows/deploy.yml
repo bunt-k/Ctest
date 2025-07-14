@@ -27,9 +27,9 @@ jobs:
     
     # GitHub Actions가 필요로 하는 보안 권한 설정
     permissions:
-      security-events: write # CodeQL, Cppcheck 제거 시 필요 없을 수 있지만, 혹시 몰라 유지.
-      actions: write # GitHub Actions 실행을 위한 기본 권한 (릴리즈 생성 등)
-      contents: write # 저장소 코드를 읽고 (체크아웃), 캐시를 쓰고, 릴리즈 에셋을 업로드하기 위한 권한
+      security-events: write
+      actions: write
+      contents: write
 
     # steps: 작업 내에서 순차적으로 실행될 단계들을 정의
     steps:
@@ -61,6 +61,7 @@ jobs:
           Write-Host "`n==== 생성된 라이선스 파일 확인 ===="
           Get-ChildItem -Path $licenseFilePath | Format-Table Name, Length, LastWriteTime -AutoSize
           Write-Host "==============================="
+
 
       # Step 3: Coverity Installer 캐시 복원 시도
       - name: Coverity Installer Cache 복원 시도
@@ -158,24 +159,42 @@ jobs:
           }
           Write-Host "Coverity 설치 프로그램 실행 완료."
           
-          # Coverity CLI PATH 설정 및 확인
-          $coverityInstallRoot = "C:\\Program Files\\Coverity"
-          $coverityBinPath = ""
+          # -----------------------------------------------------------------
+          # Coverity CLI PATH 설정 및 확인 (이 부분이 핵심 수정 사항입니다)
+          # -----------------------------------------------------------------
+          $coverityInstallRoot = "C:\\Program Files\\Coverity" # 설치 경로 변수 (Installer Arguments와 일치해야 함)
+          $coverityBinPath = "" # PATH에 추가할 정확한 bin 폴더 경로
+
+          Write-Host "`n==== Coverity CLI 경로 설정 및 확인 ===="
           if (Test-Path $coverityInstallRoot) {
+              # 설치 루트 폴더에서 cov-build.exe를 재귀적으로 찾아 정확한 bin 폴더 경로를 확보
               $covBuildExecutable = Get-ChildItem -Path $coverityInstallRoot -Recurse -Filter "cov-build.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($covBuildExecutable) { $coverityBinPath = $covBuildExecutable.DirectoryName }
-              else { $coverityBinPath = Join-Path $coverityInstallRoot "bin" }
-          } else { $coverityBinPath = Join-Path $coverityInstallRoot "bin" }
-
-          if (Test-Path $coverityBinPath) {
-              echo "PATH=$env:PATH;$coverityBinPath" >> $env:GITHUB_ENV # PATH를 다음 스텝으로 유지
-              Write-Host "Coverity CLI 경로 '$coverityBinPath'가 PATH 환경 변수에 영구적으로 추가되었습니다."
-              cov-configure --msvc # 이 스텝 내에서 설정 확인
+              
+              if ($covBuildExecutable) {
+                  $coverityBinPath = $covBuildExecutable.DirectoryName # cov-build.exe가 있는 정확한 디렉토리
+                  Write-Host "cov-build.exe 발견: $($covBuildExecutable.FullName)"
+                  Write-Host "자동으로 찾은 Coverity CLI 경로: $coverityBinPath"
+              } else {
+                  Write-Warning "경고: 설치 경로 '$coverityInstallRoot' 내에서 'cov-build.exe'를 찾을 수 없습니다. 설치가 예상과 다르게 되었을 수 있습니다."
+                  $coverityBinPath = Join-Path $coverityInstallRoot "bin" # 예비 경로 (설치 프로그램이 bin에 넣었다고 가정)
+              }
           } else {
-              Write-Warning "Coverity CLI 경로 '$coverityBinPath'를 찾을 수 없어 PATH에 추가하지 못했습니다. CLI 사용 불가."
+              Write-Error "오류: Coverity 설치 경로 '$coverityInstallRoot'를 찾을 수 없습니다. 설치가 실패했을 가능성이 높습니다."
+              $coverityBinPath = Join-Path $coverityInstallRoot "bin" # 예비 경로
           }
+          
+          # 찾은 Coverity CLI 경로를 PATH 환경 변수에 영구적으로 추가하여 다음 스텝에서 사용 가능하게 함
+          if (Test-Path $coverityBinPath) {
+              echo "PATH=$env:PATH;$coverityBinPath" >> $env:GITHUB_ENV # <--- 이 라인이 PATH를 다음 스텝에 유지시킵니다.
+              Write-Host "Coverity CLI 경로 '$coverityBinPath'가 PATH 환경 변수에 영구적으로 추가되었습니다."
+              cov-configure --msvc # 이 스텝 내에서 CLI가 작동하는지 최종 확인
+          } else {
+              Write-Error "오류: Coverity CLI 경로 '$coverityBinPath'가 존재하지 않아 PATH에 추가할 수 없습니다. CLI 사용 불가."
+              exit 1 # PATH 추가 실패 시 빌드 캡처 불가능하므로 실패 처리
+          }
+          Write-Host "============================================="
 
-      # Step 8: Visual Studio 빌드 도구 설정
+      # Step 8: Visual Studio 개발 환경 설정
       - name: Visual Studio 개발 환경 설정
         id: setup_msbuild
         uses: microsoft/setup-msbuild@v1.3.1
@@ -208,6 +227,7 @@ jobs:
 
           Write-Host "Coverity 빌드 캡처 (cov-build) 실행 및 완료 대기 중..."
           try {
+              # 이제 'cov-build'는 PATH에 있으므로, Start-Process에서 FilePath로 직접 이름을 사용할 수 있습니다.
               Start-Process -FilePath "cov-build" `
                             -ArgumentList @(
                                 "--dir",
@@ -232,5 +252,4 @@ jobs:
               exit 1
           }
           Write-Host "Coverity 빌드 캡처 및 솔루션 빌드 완료. (종료 코드: $exitCode)"
-
           
