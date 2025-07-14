@@ -217,21 +217,7 @@ jobs:
           echo "MSBUILD_PATH=$msbuildPath" >> $env:GITHUB_ENV
           Write-Host "MSBuild 경로가 설정되었습니다: $msbuildPath"
         shell: pwsh
-
-
-      # Visual Studio 빌드 도구 설정
-      - name: Visual Studio 개발 환경 설정
-        id: setup_msbuild
-        uses: microsoft/setup-msbuild@v1.3.1
-        env:
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-
-      # MSBuild 경로 저장
-      - name: MSBuild 경로 저장
-        run: |
-          $msbuildPath = vswhere.exe -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe
-          echo "MSBUILD_PATH=$msbuildPath" >> $env:GITHUB_ENV
-        shell: pwsh
+        
 
       # Coverity Build Capture and Solution Build
       - name: Coverity Build Capture and Solution Build
