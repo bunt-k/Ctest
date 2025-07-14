@@ -230,34 +230,36 @@ jobs:
           New-Item -ItemType Directory -Path $env:COVERITY_INTERMEDIATE_DIR -Force | Out-Null
           
           # MSBuild 명령 문자열
+          # 이 변수 자체에 MSBuild 경로와 인자들이 정확히 따옴표로 감싸져 있어야 합니다.
           $msbuildCommand = "`"$env:MSBUILD_PATH`" Project.sln /p:Configuration=`"Release`""
-
-          # cov-build 전체 명령 문자열 구성
-          # 이때, $msbuildCommand 자체가 큰따옴표로 감싸져 있으므로,
-          # cov-build에게 전달될 때 하나의 인자로 인식되도록 다시 큰따옴표로 감싸줍니다.
-          # $covBuildCommand = "C:\Program Files\Coverity\bin\cov-build.exe --dir `"$env:COVERITY_INTERMEDIATE_DIR`" `"$msbuildCommand`""
-          # 위 방식도 가능하지만, PowerShell의 String Expansion (문자열 확장) 기능을 활용하는 것이 더 간결합니다.
-          $covBuildExePath = "C:\Program Files\Coverity\bin\cov-build.exe"
-          $covBuildDir = "${{ env.COVERITY_INTERMEDIATE_DIR }}"
           
-          # PowerShell이 명령을 해석할 때, 따옴표와 공백을 고려하여 정확히 인자를 전달하도록 구성
-          # 여기서는 $msbuildCommand 자체가 이미 올바르게 따옴표 처리되어 있습니다.
-          $covBuildFullCommand = "`"$covBuildExePath`" --dir `"$covBuildDir`" $msbuildCommand"
-          
-          Write-Host "Executing Coverity command: $covBuildFullCommand" # 디버깅을 위한 출력
+          # 디버깅을 위해 $msbuildCommand의 최종 형태를 출력
+          Write-Host "MSBUILD Command to be captured: $msbuildCommand"
 
           try {
-              # Invoke-Expression을 사용하여 명령 문자열을 직접 실행
-              Invoke-Expression $covBuildFullCommand
+              # Start-Process를 사용하여 cov-build를 실행
+              # ArgumentList 배열에 각 인자를 명확하게 분리하여 전달합니다.
+              # 주의: $msbuildCommand 변수 자체가 이미 따옴표를 포함하고 있으므로,
+              # ArgumentList 내에서 다시 따옴표로 감싸지 않습니다.
+              Start-Process -FilePath "C:\Program Files\Coverity\bin\cov-build.exe" `
+                            -ArgumentList @(
+                                "--dir",
+                                "${{ env.COVERITY_INTERMEDIATE_DIR }}",
+                                $msbuildCommand # <--- 이 부분이 핵심입니다. 변수 자체를 전달합니다.
+                            ) `
+                            -Wait -NoNewWindow `
               $exitCode = $LASTEXITCODE
           } catch {
+              # YAML 파싱 문제 해결을 위해 'ERROR:' 제거했던 부분 유지
               Write-Error "cov-build 호출 중 예외 발생: $($_.Exception.Message)"; $exitCode = 9999
           }
           
           if ($exitCode -ne 0) {
               Write-Error "Coverity 빌드 캡처 실패. 종료 코드: $exitCode"
-              # $covBuildLogOutput, $covBuildLogError 변수가 여전히 정의되지 않았을 수 있습니다.
-              # 이 부분을 제거하거나 실제 로그 파일 경로로 교체해야 합니다.
+              # 이전처럼 $covBuildLogOutput, $covBuildLogError 변수가 정의되지 않았을 수 있으니 이 부분도 확인 필요
+              # if (Test-Path $covBuildLogOutput) { Get-Content $covBuildLogOutput | Write-Host }
+              # if (Test-Path $covBuildLogError) { Get-Content $covBuildLogError | Write-Host }
               exit 1
           }
 
+          
