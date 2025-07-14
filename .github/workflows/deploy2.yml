@@ -229,34 +229,35 @@ jobs:
             Write-Error "ERROR: MSBuild 경로를 찾을 수 없습니다."; exit 1 }
           New-Item -ItemType Directory -Path $env:COVERITY_INTERMEDIATE_DIR -Force | Out-Null
           
-          $buildCommandString = "`"$env:MSBUILD_PATH`" Project.sln /p:Configuration=`"Release`""
+          # MSBuild 명령 문자열
+          $msbuildCommand = "`"$env:MSBUILD_PATH`" Project.sln /p:Configuration=`"Release`""
+
+          # cov-build 전체 명령 문자열 구성
+          # 이때, $msbuildCommand 자체가 큰따옴표로 감싸져 있으므로,
+          # cov-build에게 전달될 때 하나의 인자로 인식되도록 다시 큰따옴표로 감싸줍니다.
+          # $covBuildCommand = "C:\Program Files\Coverity\bin\cov-build.exe --dir `"$env:COVERITY_INTERMEDIATE_DIR`" `"$msbuildCommand`""
+          # 위 방식도 가능하지만, PowerShell의 String Expansion (문자열 확장) 기능을 활용하는 것이 더 간결합니다.
+          $covBuildExePath = "C:\Program Files\Coverity\bin\cov-build.exe"
+          $covBuildDir = "${{ env.COVERITY_INTERMEDIATE_DIR }}"
+          
+          # PowerShell이 명령을 해석할 때, 따옴표와 공백을 고려하여 정확히 인자를 전달하도록 구성
+          # 여기서는 $msbuildCommand 자체가 이미 올바르게 따옴표 처리되어 있습니다.
+          $covBuildFullCommand = "`"$covBuildExePath`" --dir `"$covBuildDir`" $msbuildCommand"
+          
+          Write-Host "Executing Coverity command: $covBuildFullCommand" # 디버깅을 위한 출력
 
           try {
-              Start-Process -FilePath "C:\Program Files\Coverity\bin\cov-build.exe" `
-                            -ArgumentList @(
-                                "--dir",
-                                "${{ env.COVERITY_INTERMEDIATE_DIR }}",
-                                "`"$buildCommandString`"" # <--- 이전에 수정했던 부분
-                            ) `
-                            -Wait -NoNewWindow `
+              # Invoke-Expression을 사용하여 명령 문자열을 직접 실행
+              Invoke-Expression $covBuildFullCommand
               $exitCode = $LASTEXITCODE
           } catch {
-              # 'ERROR:' 대신 문자열 자체를 직접 전달하거나,
-              # Write-Error의 인자를 더 명확히 합니다.
-              # 옵션 A: 따옴표 안에서 콜론을 제거 (가장 간단)
-              Write-Error "cov-build 호출 중 예외 발생: $($_.Exception.Message)"
-              # 옵션 B: 메시지를 변수에 할당 후 전달 (더 견고)
-              # $errorMessage = "ERROR: cov-build 호출 중 예외 발생: $($_.Exception.Message)"
-              # Write-Error $errorMessage
-              
-              $exitCode = 9999
+              Write-Error "cov-build 호출 중 예외 발생: $($_.Exception.Message)"; $exitCode = 9999
           }
           
           if ($exitCode -ne 0) {
-              # 여기서도 'ERROR:' 부분을 검토합니다.
               Write-Error "Coverity 빌드 캡처 실패. 종료 코드: $exitCode"
-              # 이전처럼 $covBuildLogOutput, $covBuildLogError 변수가 정의되지 않았을 수 있으니 이 부분도 확인 필요
-              # if (Test-Path $covBuildLogOutput) { Get-Content $covBuildLogOutput | Write-Host }
-              # if (Test-Path $covBuildLogError) { Get-Content $covBuildLogError | Write-Host }
+              # $covBuildLogOutput, $covBuildLogError 변수가 여전히 정의되지 않았을 수 있습니다.
+              # 이 부분을 제거하거나 실제 로그 파일 경로로 교체해야 합니다.
               exit 1
           }
+
