@@ -12,13 +12,9 @@ on:
 
 env:
   MSBUILD_PATH: ''
-  # installer details (사용자 정의)
   INSTALLER_DOWNLOAD_URL: http://160.187.202.144/downloads/cov-analysis-win64-2024.12.1.exe # <-- 여기에 실제 서버 URL 입력
   INSTALLER_NAME: cov-analysis-win64-2024.12.1.exe # 다운로드될 파일명
-  # 캐시 키에 사용할 설치 파일의 버전을 명시합니다.
-  # installer URL이나 파일 내용이 변경될 때마다 이 버전을 수동으로 업데이트해야 캐시가 갱신됩니다.
-  INSTALLER_VERSION: 2024.12.1 # <--- 설치 파일의 버전이 바뀔 때마다 이 값을 변경해주세요!
-  # 압축 해제 후 생성될 원본 설치 파일 이름
+  INSTALLER_VERSION: 2024.12.1 # <--- 설치 파일의 버전이 바뀔 때마다 이 값을 변경
   COVERITY_ORIGINAL_INSTALLER_NAME: cov-analysis-win64-2024.12.1.exe
 
 jobs:
@@ -70,23 +66,12 @@ jobs:
       - name: Coverity Installer Download from HTTP Server
         shell: pwsh
         env:
-          # 여기에 실제 서버 URL 및 파일명을 입력하세요.
           INSTALLER_DOWNLOAD_URL: http://160.187.202.144/downloads/cov-analysis-win64-2024.12.1.exe 
           # 다운로드될 파일의 로컬 경로 및 이름 (워크플로우 작업 디렉토리 기준)
           LOCAL_INSTALLER_PATH: cov-analysis-win64-2024.12.1.exe 
         run: |
-          # 🚨🚨 중요 경고 🚨🚨
-          # 이 URL은 반드시 GitHub Actions Runner에서 접근 가능한 공개적인 URL이어야 합니다.
-          # 사설 IP 주소나 내부망 도메인은 접근할 수 없어 다운로드에 실패합니다.
-
           $downloadUrl = "${{ env.INSTALLER_DOWNLOAD_URL }}"
           $outputPath = "${{ env.LOCAL_INSTALLER_PATH }}"
-          # 다운로드될 파일의 디렉토리가 현재 워크플로우의 작업 디렉토리(리포지토리 루트)이므로 별도 생성 필요 없음
-          # 만약 특정 서브폴더(예: `downloads/`)에 저장하려면:
-          # $downloadDir = "downloads"
-          # New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
-          # $outputPath = Join-Path $downloadDir "${{ env.LOCAL_INSTALLER_PATH }}"
-
 
           Write-Host "Coverity 설치 파일 다운로드 시작..."
           Write-Host "URL: $downloadUrl"
@@ -117,16 +102,12 @@ jobs:
           Get-ChildItem -Path "./" -File | Format-Table Name, Length, LastWriteTime -AutoSize
           Write-Host "============================"
 
-
       - name: 디스크 공간 확인 (GB 단위)
         shell: pwsh
         run: |
           Write-Host "==== 현재 러너의 디스크 공간 (GB 단위) ===="
           Get-PSDrive -PSProvider FileSystem | Select-Object Name, Root, @{Name='Free(GB)'; Expression={$_.Free / 1GB -as [int]}}, @{Name='Used(GB)'; Expression={$_.Used / 1GB -as [int]}}, @{Name='Size(GB)'; Expression={$_.Size / 1GB -as [int]}} | Format-Table -AutoSize
           Write-Host "============================================="
-
-
-
 
       - name: Coverity 설치 프로그램 실행
         shell: pwsh
@@ -215,4 +196,66 @@ jobs:
           } else {
               Write-Warning "Coverity CLI 경로 '$coverityBinPath'를 찾을 수 없어 PATH에 추가하지 못했습니다. CLI 사용 불가."
           }
+
+
+
+      # -----------------------------------------------------
+      # Step 4: Visual Studio 빌드 도구 설정 (기존 스텝 유지)
+      # -----------------------------------------------------
+      - name: Visual Studio 개발 환경 설정
+        id: setup_msbuild
+        uses: microsoft/setup-msbuild@v1.3.1
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+      # -----------------------------------------------------
+      # Step 5: MSBuild 경로 저장 (기존 스텝 유지)
+      # -----------------------------------------------------
+      - name: MSBuild 경로 저장
+        run: |
+          $msbuildPath = vswhere.exe -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe
+          echo "MSBUILD_PATH=$msbuildPath" >> $env:GITHUB_ENV
+          Write-Host "MSBuild 경로가 설정되었습니다: $msbuildPath"
+        shell: pwsh
+
+
+      # -----------------------------------------------------
+      # Step 6: Visual Studio 솔루션 빌드 (Coverity cov-build로 캡처)
+      # -----------------------------------------------------
+
+      - name: Coverity Build Capture and Solution Build
+        shell: pwsh
+        env:
+          COVERITY_INTERMEDIATE_DIR: idir # Coverity 중간 디렉토리 이름
+        run: |
+          # MSBuild 경로 확인 (필수 기능)
+          if (-not (Test-Path $env:MSBUILD_PATH)) {
+            Write-Error "MSBuild 경로를 찾을 수 없습니다: $env:MSBUILD_PATH"
+            exit 1
+          }
+          
+          # cov-build가 실행할 빌드 명령어 문자열 구성
+          $buildCommandString = "`"$env:MSBUILD_PATH`" Project.sln /p:Configuration=`"Release`""
+
+          $covBuildLogOutput = "cov_build_stdout.log" # cov-build의 표준 출력 저장 파일
+          $covBuildLogError = "cov_build_stderr.log"   # cov-build의 표준 에러 저장 파일
+
+          try {
+              Write-Host "Coverity 빌드 캡처 (cov-build) 실행 및 완료 대기 중..." # 시작 메시지
+              Start-Process -FilePath "cov-build" `
+                            -ArgumentList @(
+                                "--dir",
+                                "${{ env.COVERITY_INTERMEDIATE_DIR }}",
+                                $buildCommandString
+                            ) `
+                            -Wait ` # cov-build가 완료될 때까지 기다립니다.
+                            -NoNewWindow ` # 새로운 창이 뜨는 것을 방지
+
+              $exitCode = $LASTEXITCODE
+          } catch {
+              Write-Error "cov-build 호출 중 PowerShell 예외 발생: $($_.Exception.Message)"
+              $exitCode = 9999
+          }
+          
+          Write-Host "Coverity 빌드 캡처 및 솔루션 빌드 완료. (종료 코드: $exitCode)" # 완료 메시지
 
